@@ -55,9 +55,9 @@ It encrypts the communication between a [web client](./web-infrastructure.md#web
 
 An `HTTP` request is a message sent by a client to a server asking for resources or to perform actions. It includes a method, headers, and optional body.
 
-<!-- TODO image -->
+<img alt="HTTP Request text" src="./images/http/http-request-text.png" style="width:400px"></img>
 
-<!-- https://www.cloud4y.ru/upload/medialibrary/4c0/hn5x5w7tx2pa0t3m1us71vh51dthf4kg/2.jpg -->
+[[Source](https://www.cloud4y.ru/upload/medialibrary/4c0/hn5x5w7tx2pa0t3m1us71vh51dthf4kg/2.jpg)]
 
 ### `HTTP` request method
 
