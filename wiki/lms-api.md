@@ -18,9 +18,13 @@ The [LMS API host port](#lms-api-host-port).
 >
 > See [URL](./computer-networks.md#url).
 
-LOCAL: `http://localhost:<lms-api-host-port>`
+- (REMOTE) When running the request on the VM:
+  
+  `http://localhost:<lms-api-host-port>`
 
-REMOTE: `http://<your-vm-ip-address>:<lms-api-host-port>`
+- (LOCAL) When running the request on the local machine:
+  
+  `http://<your-vm-ip-address>:<lms-api-host-port>`
 
 Replace the placeholders:
 
