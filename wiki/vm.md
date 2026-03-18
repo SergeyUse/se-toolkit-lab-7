@@ -158,7 +158,7 @@ Complete these steps:
 
 1. [Create a VM](#create-a-vm).
 2. [Set up the `SSH` access to the VM as the user `admin`](./vm-access.md#set-up-the-ssh-access-to-the-vm).
-3. [Provide the `Autochecker` agent with access to your VM](./autochecker.md#provide-the-autochecker-agent-with-access-to-your-vm-remote).
+3. [Provide the `Autochecker` agent with access to the VM](./autochecker.md#provide-the-autochecker-agent-with-access-to-the-vm-remote).
 4. [Harden the VM for the user `admin`](./vm-hardening.md#harden-the-vm).
 
 ## Delete the VM
