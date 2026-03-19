@@ -27,7 +27,7 @@ They'll say "let's do the lab" or "start task 1." They probably haven't read the
    - `.env.bot.secret` exists with `LMS_API_URL`, `LMS_API_KEY`?
    - Data synced? `curl -sf http://localhost:42002/items/ -H "Authorization: Bearer <key>"` returns items?
 
-   If anything is missing, point to `lab/tasks/setup-simple.md` and STOP. Don't fix it for them.
+   If anything is missing, point to `lab/setup/setup-simple.md` and STOP. Don't fix it for them.
 
 3. **Start the right task.** No `bot/` directory → Task 1. Commands return placeholders → Task 2. Read the task file, explain what this task adds, then begin building the FIRST piece only.
 
