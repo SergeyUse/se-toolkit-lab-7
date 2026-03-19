@@ -2,6 +2,13 @@
 
 Use your coding agent to create a development plan and project skeleton for the Telegram bot. This is the foundation — you will implement the actual features in Tasks 2–3.
 
+## Requirements targeted
+
+From the [prioritized requirements](../../README.md#requirements):
+
+- **P0.1** Bot project scaffolded with testable handler architecture (handlers work without Telegram)
+- **P0.2** CLI test mode: `python bot/bot.py --test "/command"` — prints response to stdout, exits
+
 ## What you will build
 
 A `bot/` directory inside your repo containing the scaffolded project: entry point, handler layer, configuration, dependencies, and a `--test` mode for offline verification.
@@ -27,10 +34,6 @@ python bot/bot.py --test "/start"
 ```
 
 This prints the bot's response to stdout and exits — no Telegram connection needed. The autochecker uses this to verify your bot's behavior.
-
-## Prioritized requirements
-
-See the [requirements section](../../README.md#requirements) in the README for the full prioritized list (P0–P3). Give these to your coding agent when creating the plan — it needs to understand the full scope across all tasks, not just Task 1.
 
 ## Test mode specification
 

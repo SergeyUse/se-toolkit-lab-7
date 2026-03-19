@@ -2,6 +2,15 @@
 
 The bot currently only responds to slash commands. In this task, you make it understand plain text — the user types a question in natural language, and the bot uses an LLM to figure out what data to fetch and how to answer.
 
+## Requirements targeted
+
+From the [prioritized requirements](../../README.md#requirements):
+
+- **P1.1** Natural language intent routing — plain text messages (no `/` prefix) interpreted by LLM
+- **P1.2** All 9 backend endpoints wrapped as LLM tools
+- **P1.3** Inline keyboard buttons for common actions
+- **P1.4** Multi-step reasoning (LLM chains multiple API calls to answer one question)
+
 ## What you will build
 
 An intent router that accepts plain text messages, sends them to an LLM along with tool definitions (your backend API endpoints), and composes a response from the results.

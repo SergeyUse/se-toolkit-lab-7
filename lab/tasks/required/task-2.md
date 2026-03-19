@@ -2,6 +2,17 @@
 
 Connect your bot to the LMS backend with real data commands. After this task, the bot fetches live data from your deployed backend and formats it for the user.
 
+## Requirements targeted
+
+From the [prioritized requirements](../../README.md#requirements):
+
+- **P0.3** `/start` — welcome message
+- **P0.4** `/help` — lists all available commands
+- **P0.5** `/health` — calls backend, reports up/down status
+- **P0.6** `/labs` — lists available labs from the backend
+- **P0.7** `/scores <lab>` — shows per-task pass rates for a given lab
+- **P0.8** Error handling — backend down produces a friendly message, not a crash
+
 ## What you will build
 
 Working implementations of 5 slash commands that call the LMS backend API. All verifiable via `--test` mode.

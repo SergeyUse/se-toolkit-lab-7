@@ -2,6 +2,15 @@
 
 Deploy the bot on your VM alongside the backend and document the setup.
 
+## Requirements targeted
+
+From the [prioritized requirements](../../README.md#requirements):
+
+- **P3.1** Bot containerized with Dockerfile
+- **P3.2** Added as a service in `docker-compose.yml` alongside the backend
+- **P3.3** Deployed and running on the VM
+- **P3.4** README documents how to deploy
+
 ## What you will do
 
 Add the bot as a Docker service in your existing `docker-compose.yml`, verify it responds in Telegram, and document the deployment.
