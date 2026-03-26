@@ -38,28 +38,28 @@ logger = logging.getLogger(__name__)
 
 async def run_test_mode(query: str) -> None:
     """Run the bot in test mode.
-    
+
     Calls handlers directly without Telegram connection.
     Prints response to stdout and exits with code 0.
-    
+
     Args:
         query: The command or query to test (e.g., "/start", "/help").
     """
     config = load_config()
-    
+
     # Initialize LMS client for test mode
     lms_client = LMSClient(config["lms_api_url"], config["lms_api_key"])
     set_lms_client(lms_client)
-    
+
     try:
         # Parse the query
         query = query.strip()
-        
+
         if query.startswith("/"):
             parts = query[1:].split(maxsplit=1)
             command = parts[0].lower()
             args = parts[1] if len(parts) > 1 else None
-            
+
             # Route to appropriate handler
             if command == "start":
                 response = await handle_start(args)
@@ -76,24 +76,24 @@ async def run_test_mode(query: str) -> None:
         else:
             # General query
             response = await handle_general_query(query)
-        
+
         # Print response to stdout
         print(response)
-    
+
     finally:
         await lms_client.close()
 
 
-async def run_telegram_mode() -> None:
+def run_telegram_mode() -> None:
     """Run the bot in Telegram mode.
-    
+
     Connects to Telegram and handles real user messages.
     """
     try:
-        from telegram import Update, Application
-        from telegram.ext import CommandHandler, MessageHandler, filters, ContextTypes
-    except ImportError:
-        logger.error("python-telegram-bot not installed. Run: uv sync")
+        from telegram import Update
+        from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+    except ImportError as e:
+        logger.error(f"python-telegram-bot not installed. Run: uv sync. Error: {e}")
         sys.exit(1)
     
     config = load_config()
@@ -151,10 +151,10 @@ async def run_telegram_mode() -> None:
     app.add_handler(CommandHandler("labs", cmd_labs))
     app.add_handler(CommandHandler("scores", cmd_scores))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
+
     # Start the bot
     logger.info("Starting Telegram bot...")
-    await app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 def main():
@@ -168,15 +168,15 @@ def main():
         metavar="QUERY",
         help="Run in test mode with the specified query (e.g., '/start')",
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.test:
         # Test mode - no Telegram connection needed
         asyncio.run(run_test_mode(args.test))
     else:
-        # Telegram mode
-        asyncio.run(run_telegram_mode())
+        # Telegram mode - run_polling manages its own event loop
+        run_telegram_mode()
 
 
 if __name__ == "__main__":
