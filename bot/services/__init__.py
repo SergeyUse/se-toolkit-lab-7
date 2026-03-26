@@ -4,6 +4,7 @@ Contains API clients for LMS and LLM services.
 """
 
 import httpx
+import json
 from typing import Optional, Dict, Any, List, Tuple
 
 
@@ -94,6 +95,22 @@ class LMSClient:
             error_msg = self._format_error_message(e, "health check")
             return False, error_msg
     
+    async def get_items(self) -> Tuple[bool, List[Dict[str, Any]], str]:
+        """Get list of all items (labs and tasks).
+        
+        Returns:
+            Tuple of (success, items_list, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(f"{self.base_url}/items/")
+            response.raise_for_status()
+            items = response.json()
+            return True, items, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get items")
+            return False, [], error_msg
+    
     async def get_labs(self) -> Tuple[bool, List[str], str]:
         """Get list of available labs.
         
@@ -115,6 +132,22 @@ class LMSClient:
             
         except Exception as e:
             error_msg = self._format_error_message(e, "get labs")
+            return False, [], error_msg
+    
+    async def get_learners(self) -> Tuple[bool, List[Dict[str, Any]], str]:
+        """Get list of enrolled learners.
+        
+        Returns:
+            Tuple of (success, learners_list, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(f"{self.base_url}/learners/")
+            response.raise_for_status()
+            learners = response.json()
+            return True, learners, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get learners")
             return False, [], error_msg
     
     async def get_pass_rates(self, lab_id: str) -> Tuple[bool, List[Dict[str, Any]], str]:
@@ -145,10 +178,266 @@ class LMSClient:
         except Exception as e:
             error_msg = self._format_error_message(e, "get pass rates")
             return False, [], error_msg
+    
+    async def get_scores(self, lab_id: str) -> Tuple[bool, List[Dict[str, Any]], str]:
+        """Get score distribution for a lab.
+        
+        Args:
+            lab_id: The lab identifier.
+            
+        Returns:
+            Tuple of (success, scores_list, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"{self.base_url}/analytics/scores",
+                params={"lab": lab_id}
+            )
+            response.raise_for_status()
+            data = response.json()
+            return True, data, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get scores")
+            return False, [], error_msg
+    
+    async def get_timeline(self, lab_id: str) -> Tuple[bool, List[Dict[str, Any]], str]:
+        """Get submission timeline for a lab.
+        
+        Args:
+            lab_id: The lab identifier.
+            
+        Returns:
+            Tuple of (success, timeline_list, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"{self.base_url}/analytics/timeline",
+                params={"lab": lab_id}
+            )
+            response.raise_for_status()
+            data = response.json()
+            return True, data, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get timeline")
+            return False, [], error_msg
+    
+    async def get_groups(self, lab_id: str) -> Tuple[bool, List[Dict[str, Any]], str]:
+        """Get per-group performance for a lab.
+        
+        Args:
+            lab_id: The lab identifier.
+            
+        Returns:
+            Tuple of (success, groups_list, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"{self.base_url}/analytics/groups",
+                params={"lab": lab_id}
+            )
+            response.raise_for_status()
+            data = response.json()
+            return True, data, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get groups")
+            return False, [], error_msg
+    
+    async def get_top_learners(self, lab_id: str, limit: int = 5) -> Tuple[bool, List[Dict[str, Any]], str]:
+        """Get top learners for a lab.
+        
+        Args:
+            lab_id: The lab identifier.
+            limit: Number of top learners to return.
+            
+        Returns:
+            Tuple of (success, learners_list, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"{self.base_url}/analytics/top-learners",
+                params={"lab": lab_id, "limit": limit}
+            )
+            response.raise_for_status()
+            data = response.json()
+            return True, data, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get top learners")
+            return False, [], error_msg
+    
+    async def get_completion_rate(self, lab_id: str) -> Tuple[bool, Dict[str, Any], str]:
+        """Get completion rate for a lab.
+        
+        Args:
+            lab_id: The lab identifier.
+            
+        Returns:
+            Tuple of (success, completion_data, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"{self.base_url}/analytics/completion-rate",
+                params={"lab": lab_id}
+            )
+            response.raise_for_status()
+            data = response.json()
+            return True, data, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get completion rate")
+            return False, {}, error_msg
+    
+    async def trigger_sync(self) -> Tuple[bool, Dict[str, Any], str]:
+        """Trigger ETL sync pipeline.
+        
+        Returns:
+            Tuple of (success, sync_result, error_message).
+        """
+        try:
+            client = await self._get_client()
+            response = await client.post(
+                f"{self.base_url}/pipeline/sync",
+                json={}
+            )
+            response.raise_for_status()
+            data = response.json()
+            return True, data, ""
+        except Exception as e:
+            error_msg = self._format_error_message(e, "trigger sync")
+            return False, {}, error_msg
+
+
+# Tool definitions for LLM function calling
+TOOL_DEFINITIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_items",
+            "description": "Get list of all labs and tasks in the system. Use this to find available labs.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_learners",
+            "description": "Get list of enrolled students and their groups. Use for questions about enrollment.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_pass_rates",
+            "description": "Get per-task average scores and attempt counts for a specific lab.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lab": {"type": "string", "description": "Lab identifier, e.g. 'lab-01', 'lab-04'"}
+                },
+                "required": ["lab"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scores",
+            "description": "Get score distribution (4 buckets) for a lab.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lab": {"type": "string", "description": "Lab identifier, e.g. 'lab-01'"}
+                },
+                "required": ["lab"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_timeline",
+            "description": "Get submissions per day timeline for a lab.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lab": {"type": "string", "description": "Lab identifier, e.g. 'lab-01'"}
+                },
+                "required": ["lab"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_groups",
+            "description": "Get per-group scores and student counts for a lab. Use for comparing groups.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lab": {"type": "string", "description": "Lab identifier, e.g. 'lab-01'"}
+                },
+                "required": ["lab"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_top_learners",
+            "description": "Get top N learners by score for a lab.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lab": {"type": "string", "description": "Lab identifier, e.g. 'lab-01'"},
+                    "limit": {"type": "integer", "description": "Number of top learners to return, default 5"}
+                },
+                "required": ["lab"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_completion_rate",
+            "description": "Get completion rate percentage for a lab.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lab": {"type": "string", "description": "Lab identifier, e.g. 'lab-01'"}
+                },
+                "required": ["lab"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "trigger_sync",
+            "description": "Trigger ETL sync to refresh data from autochecker. Use when user asks to update data.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
+]
 
 
 class LLMClient:
-    """Client for the LLM (Language Learning Model) API."""
+    """Client for the LLM (Language Learning Model) API with tool calling support."""
     
     def __init__(self, base_url: str, api_key: str, model: str):
         """Initialize the LLM client.
@@ -180,26 +469,49 @@ class LLMClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
     
-    async def chat_completion(self, messages: list) -> str:
-        """Get a chat completion from the LLM.
+    async def chat_completion(
+        self, 
+        messages: list,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: str = "auto"
+    ) -> Tuple[Optional[str], List[Dict[str, Any]]]:
+        """Get a chat completion from the LLM with optional tool calling.
         
         Args:
             messages: List of message dictionaries with role and content.
+            tools: Optional list of tool definitions for function calling.
+            tool_choice: How to use tools - "auto", "none", or "required".
             
         Returns:
-            The completion text from the LLM.
+            Tuple of (response_text, tool_calls_list).
+            If tool calls are present, response_text will be None.
         """
         client = await self._get_client()
+        
+        payload = {
+            "model": self.model,
+            "messages": messages,
+        }
+        
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = tool_choice
+        
         response = await client.post(
             f"{self.base_url}/chat/completions",
-            json={
-                "model": self.model,
-                "messages": messages,
-            },
+            json=payload,
         )
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        
+        choice = data["choices"][0]
+        message = choice["message"]
+        
+        # Check for tool calls
+        if "tool_calls" in message and message["tool_calls"]:
+            return None, message["tool_calls"]
+        
+        return message.get("content", ""), []
     
     async def health_check(self) -> bool:
         """Check if the LLM API is healthy.
