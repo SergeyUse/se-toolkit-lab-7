@@ -7,10 +7,12 @@ calls these functions and sends the response to Telegram.
 
 from typing import Optional, Dict, Any
 from services import LMSClient, BackendError
+from router import IntentRouter, set_router, get_router
 
 
 # Global LMS client instance (initialized by bot.py)
 _lms_client: Optional[LMSClient] = None
+_llm_client = None
 
 
 def set_lms_client(client: LMSClient) -> None:
@@ -21,6 +23,21 @@ def set_lms_client(client: LMSClient) -> None:
     """
     global _lms_client
     _lms_client = client
+
+
+def set_llm_client(client) -> None:
+    """Set the LLM client for handlers to use.
+    
+    Args:
+        client: The LLM client instance.
+    """
+    global _llm_client
+    _llm_client = client
+    
+    # Initialize the intent router
+    if _lms_client:
+        router = IntentRouter(_lms_client, client)
+        set_router(router)
 
 
 def get_lms_client() -> Optional[LMSClient]:
@@ -48,7 +65,11 @@ async def handle_start(args: Optional[str] = None) -> str:
         "• Getting help with commands\n"
         "• Checking backend health\n"
         "• Finding available labs\n\n"
-        "Use /help to see all available commands."
+        "Use /help to see all available commands.\n\n"
+        "Or just ask me questions like:\n"
+        "• 'What labs are available?'\n"
+        "• 'Show scores for lab 4'\n"
+        "• 'Which lab has the lowest pass rate?'"
     )
 
 
@@ -68,8 +89,11 @@ async def handle_help(args: Optional[str] = None) -> str:
         "/health - Check backend service status\n"
         "/labs - List available labs\n"
         "/scores <lab_id> - Get your scores for a specific lab\n\n"
-        "Examples:\n"
-        "• /scores lab-04 - Get pass rates for Lab 4"
+        "You can also ask questions in plain English:\n"
+        "• 'What labs are available?'\n"
+        "• 'Show me scores for lab 4'\n"
+        "• 'Which lab has the lowest pass rate?'\n"
+        "• 'Who are the top 5 students in lab 4?'"
     )
 
 
@@ -155,7 +179,7 @@ async def handle_scores(args: Optional[str] = None) -> str:
 
 
 async def handle_general_query(query: str) -> str:
-    """Handle general natural language queries.
+    """Handle general natural language queries using LLM routing.
     
     Args:
         query: The user's natural language question.
@@ -163,31 +187,22 @@ async def handle_general_query(query: str) -> str:
     Returns:
         Response to the query.
     """
-    # Simple keyword-based routing for common queries
-    query_lower = query.lower()
+    router = get_router()
     
-    if "lab" in query_lower and ("available" in query_lower or "list" in query_lower):
-        return await handle_labs()
+    if not router:
+        # Fallback if router not initialized
+        return (
+            f"🤔 You asked: \"{query}\"\n\n"
+            "I can help you with:\n"
+            "• /start - Welcome message\n"
+            "• /help - List of commands\n"
+            "• /health - Backend status\n"
+            "• /labs - Available labs\n"
+            "• /scores <lab_id> - Pass rates for a lab"
+        )
     
-    if "score" in query_lower or "pass" in query_lower:
-        # Try to extract lab ID from query
-        import re
-        lab_match = re.search(r'lab[- ]?\d+', query_lower, re.IGNORECASE)
-        if lab_match:
-            lab_id = lab_match.group().replace(" ", "-")
-            return await handle_scores(lab_id)
-        else:
-            return "Please specify which lab you want to see scores for. Example: /scores lab-04"
-    
-    if "help" in query_lower or "command" in query_lower:
-        return await handle_help()
-    
-    return (
-        f"🤔 You asked: \"{query}\"\n\n"
-        "I can help you with:\n"
-        "• /start - Welcome message\n"
-        "• /help - List of commands\n"
-        "• /health - Backend status\n"
-        "• /labs - Available labs\n"
-        "• /scores <lab_id> - Pass rates for a lab"
-    )
+    try:
+        response = await router.route(query)
+        return response
+    except Exception as e:
+        return f"⚠️ Error processing your query: {str(e)}"
