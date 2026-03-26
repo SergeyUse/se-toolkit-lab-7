@@ -91,3 +91,93 @@ By the end of this lab, you should be able to say:
 2. [Backend Integration](./lab/tasks/required/task-2.md) — P0: slash commands + real data
 3. [Intent-Based Natural Language Routing](./lab/tasks/required/task-3.md) — P1: LLM tool use
 4. [Containerize and Document](./lab/tasks/required/task-4.md) — P3: containerize + deploy
+
+## Deploy
+
+This section explains how to deploy the Telegram bot alongside the LMS backend using Docker.
+
+### Prerequisites
+
+1. **Telegram Bot Token**: Get one from [@BotFather](https://t.me/botfather)
+   - Send `/newbot` and follow the prompts
+   - Save the token (looks like: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`)
+
+2. **LLM API Access**: The bot uses Qwen Code API for natural language understanding
+   - Ensure the Qwen proxy is running: `docker ps | grep qwen`
+   - Note the host port (default: 8080)
+
+3. **LMS API Key**: Already configured in `.env.docker.secret` as `LMS_API_KEY`
+
+### Configuration
+
+Edit `.env.docker.secret` on your VM with the following variables:
+
+```bash
+# Bot configuration
+BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+LMS_API_URL=http://backend:8000
+LLM_API_KEY=your-qwen-api-key
+LLM_API_BASE_URL=http://host.docker.internal:8080/v1
+LLM_API_MODEL=qwen3.5-plus
+```
+
+> **Note**: `LMS_API_URL` uses `backend` (Docker service name), not `localhost`.
+> `LLM_API_BASE_URL` uses `host.docker.internal` to reach the Qwen proxy on the host.
+
+### Deploy Commands
+
+```bash
+# Navigate to project directory
+cd ~/se-toolkit-lab-7
+
+# Stop any running bot process (from previous tasks)
+pkill -f "bot.py" 2>/dev/null
+
+# Build and start all services (backend + bot)
+docker compose --env-file .env.docker.secret up --build -d
+
+# Check status
+docker compose --env-file .env.docker.secret ps
+
+# View bot logs
+docker compose --env-file .env.docker.secret logs bot --tail 50
+```
+
+### Verify Deployment
+
+1. **Check containers are running**:
+   ```bash
+   docker ps | grep -E "(backend|bot)"
+   ```
+
+2. **Verify backend is healthy**:
+   ```bash
+   curl -sf http://localhost:42002/items/ -H "Authorization: Bearer my-secret-api-key" | head -c 100
+   ```
+
+3. **Test bot in Telegram**:
+   - Send `/start` to your bot
+   - Try `/health` — should show backend status
+   - Ask "what labs are available?" — should list labs from backend
+
+### Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Bot container restarting | Check logs: `docker compose logs bot` |
+| `/health` fails | Verify `LMS_API_URL=http://backend:8000` |
+| LLM queries fail | Check `LLM_API_BASE_URL` uses `host.docker.internal` |
+| "BOT_TOKEN is required" | Add `BOT_TOKEN` to `.env.docker.secret` |
+
+### Stop/Restart
+
+```bash
+# Stop all services
+docker compose --env-file .env.docker.secret down
+
+# Restart bot only
+docker compose --env-file .env.docker.secret restart bot
+
+# Rebuild and restart (after code changes)
+docker compose --env-file .env.docker.secret up --build -d bot
+```
