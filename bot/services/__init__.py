@@ -4,7 +4,16 @@ Contains API clients for LMS and LLM services.
 """
 
 import httpx
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Tuple
+
+
+class BackendError(Exception):
+    """Exception raised when backend API calls fail."""
+    
+    def __init__(self, message: str, original_error: Optional[Exception] = None):
+        self.message = message
+        self.original_error = original_error
+        super().__init__(self.message)
 
 
 class LMSClient:
@@ -35,47 +44,107 @@ class LMSClient:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
     
-    async def health_check(self) -> bool:
+    def _format_error_message(self, error: Exception, operation: str) -> str:
+        """Format a user-friendly error message that includes the actual error.
+        
+        Args:
+            error: The original exception.
+            operation: The operation that failed.
+            
+        Returns:
+            A user-friendly error message with the actual error details.
+        """
+        error_str = str(error).lower()
+        
+        # Connection errors
+        if "connection refused" in error_str or "connect" in error_str:
+            return f"Backend error: connection refused ({self.base_url}). Check that the services are running."
+        if "name resolution" in error_str or "nodename" in error_str:
+            return f"Backend error: cannot resolve hostname ({self.base_url}). Check network configuration."
+        
+        # HTTP errors
+        if isinstance(error, httpx.HTTPStatusError):
+            status = error.response.status_code
+            reason = error.response.reason_phrase
+            return f"Backend error: HTTP {status} {reason}. The backend service may be down."
+        
+        # Timeout errors
+        if "timeout" in error_str or "timed out" in error_str:
+            return f"Backend error: request timed out. The service may be overloaded."
+        
+        # Generic error - include the actual error message
+        return f"Backend error: {str(error)}. Check that the services are running."
+    
+    async def health_check(self) -> Tuple[bool, str]:
         """Check if the LMS API is healthy.
         
         Returns:
-            True if the API is healthy, False otherwise.
+            Tuple of (is_healthy, status_message).
         """
         try:
             client = await self._get_client()
-            response = await client.get(f"{self.base_url}/health")
-            return response.status_code == 200
-        except Exception:
-            return False
+            response = await client.get(f"{self.base_url}/items/")
+            if response.status_code == 200:
+                items = response.json()
+                count = len(items)
+                return True, f"Backend is healthy. {count} items available."
+            else:
+                return False, f"Backend returned HTTP {response.status_code}."
+        except Exception as e:
+            error_msg = self._format_error_message(e, "health check")
+            return False, error_msg
     
-    async def get_labs(self) -> Dict[str, Any]:
+    async def get_labs(self) -> Tuple[bool, List[str], str]:
         """Get list of available labs.
         
         Returns:
-            Dictionary with labs information.
+            Tuple of (success, labs_list, error_message).
         """
-        client = await self._get_client()
-        response = await client.get(f"{self.base_url}/labs")
-        response.raise_for_status()
-        return response.json()
+        try:
+            client = await self._get_client()
+            response = await client.get(f"{self.base_url}/items/")
+            response.raise_for_status()
+            
+            items = response.json()
+            labs = [item["title"] for item in items if item.get("type") == "lab"]
+            
+            if not labs:
+                return True, ["No labs found in the system."], ""
+            
+            return True, labs, ""
+            
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get labs")
+            return False, [], error_msg
     
-    async def get_scores(self, user_id: str, lab_id: Optional[str] = None) -> Dict[str, Any]:
-        """Get scores for a user.
+    async def get_pass_rates(self, lab_id: str) -> Tuple[bool, List[Dict[str, Any]], str]:
+        """Get pass rates for a specific lab.
         
         Args:
-            user_id: The user's ID.
-            lab_id: Optional specific lab ID to get scores for.
+            lab_id: The lab identifier (e.g., "lab-04").
             
         Returns:
-            Dictionary with scores information.
+            Tuple of (success, pass_rates_list, error_message).
         """
-        client = await self._get_client()
-        url = f"{self.base_url}/scores/{user_id}"
-        if lab_id:
-            url += f"?lab_id={lab_id}"
-        response = await client.get(url)
-        response.raise_for_status()
-        return response.json()
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"{self.base_url}/analytics/pass-rates",
+                params={"lab": lab_id}
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            return True, data, ""
+            
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False, [], f"Lab '{lab_id}' not found. Use /labs to see available labs."
+            error_msg = self._format_error_message(e, "get pass rates")
+            return False, [], error_msg
+        except Exception as e:
+            error_msg = self._format_error_message(e, "get pass rates")
+            return False, [], error_msg
 
 
 class LLMClient:
