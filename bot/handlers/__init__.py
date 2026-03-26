@@ -5,7 +5,31 @@ They have no dependency on Telegram - the bot entry point
 calls these functions and sends the response to Telegram.
 """
 
-from typing import Optional
+from typing import Optional, Dict, Any
+from services import LMSClient, BackendError
+
+
+# Global LMS client instance (initialized by bot.py)
+_lms_client: Optional[LMSClient] = None
+
+
+def set_lms_client(client: LMSClient) -> None:
+    """Set the LMS client for handlers to use.
+    
+    Args:
+        client: The LMS client instance.
+    """
+    global _lms_client
+    _lms_client = client
+
+
+def get_lms_client() -> Optional[LMSClient]:
+    """Get the current LMS client.
+    
+    Returns:
+        The LMS client instance or None if not set.
+    """
+    return _lms_client
 
 
 async def handle_start(args: Optional[str] = None) -> str:
@@ -44,9 +68,8 @@ async def handle_help(args: Optional[str] = None) -> str:
         "/health - Check backend service status\n"
         "/labs - List available labs\n"
         "/scores <lab_id> - Get your scores for a specific lab\n\n"
-        "You can also ask questions like:\n"
-        "• 'what labs are available'\n"
-        "• 'show my scores for lab-04'"
+        "Examples:\n"
+        "• /scores lab-04 - Get pass rates for Lab 4"
     )
 
 
@@ -59,14 +82,16 @@ async def handle_health(args: Optional[str] = None) -> str:
     Returns:
         Backend health status.
     """
-    # Will be implemented in Task 2 with actual API check
-    return (
-        "🏥 Health Status:\n\n"
-        "Backend: OK\n"
-        "LMS API: OK\n"
-        "LLM Service: OK\n\n"
-        "All systems operational!"
-    )
+    client = get_lms_client()
+    if not client:
+        return "⚠️ LMS client not configured. Please check bot configuration."
+    
+    is_healthy, message = await client.health_check()
+    
+    if is_healthy:
+        return f"🏥 {message}"
+    else:
+        return f"⚠️ {message}"
 
 
 async def handle_labs(args: Optional[str] = None) -> str:
@@ -78,18 +103,20 @@ async def handle_labs(args: Optional[str] = None) -> str:
     Returns:
         List of available labs.
     """
-    # Will be implemented in Task 3 with actual API call
-    return (
-        "📚 Available Labs:\n\n"
-        "• Lab 1: Introduction\n"
-        "• Lab 2: Basic Concepts\n"
-        "• Lab 3: Advanced Features\n"
-        "• Lab 4: Integration\n"
-        "• Lab 5: Testing\n"
-        "• Lab 6: Deployment\n"
-        "• Lab 7: Final Project\n\n"
-        "Use /scores <lab_id> to check your scores."
-    )
+    client = get_lms_client()
+    if not client:
+        return "⚠️ LMS client not configured. Please check bot configuration."
+    
+    success, labs, error = await client.get_labs()
+    
+    if not success:
+        return f"⚠️ {error}"
+    
+    if not labs:
+        return "📚 No labs found in the system."
+    
+    labs_formatted = "\n".join(f"• {lab}" for lab in labs)
+    return f"📚 Available Labs:\n\n{labs_formatted}"
 
 
 async def handle_scores(args: Optional[str] = None) -> str:
@@ -102,14 +129,29 @@ async def handle_scores(args: Optional[str] = None) -> str:
         Score information for the specified lab.
     """
     if not args:
-        return "Please specify a lab ID. Example: /scores lab-04"
+        return "⚠️ Please specify a lab ID. Example: /scores lab-04"
     
-    # Will be implemented in Task 2 with actual API call
-    return (
-        f"📊 Scores for {args}:\n\n"
-        f"Status: Pending implementation\n"
-        f"Check back later for actual scores."
-    )
+    client = get_lms_client()
+    if not client:
+        return "⚠️ LMS client not configured. Please check bot configuration."
+    
+    success, pass_rates, error = await client.get_pass_rates(args)
+    
+    if not success:
+        return f"⚠️ {error}"
+    
+    if not pass_rates:
+        return f"📊 No pass rate data available for {args}."
+    
+    # Format pass rates
+    lines = [f"📊 Pass rates for {args}:"]
+    for rate in pass_rates:
+        task = rate.get("task", "Unknown task")
+        avg_score = rate.get("avg_score", 0)
+        attempts = rate.get("attempts", 0)
+        lines.append(f"• {task}: {avg_score:.1f}% ({attempts} attempts)")
+    
+    return "\n".join(lines)
 
 
 async def handle_general_query(query: str) -> str:
@@ -121,9 +163,31 @@ async def handle_general_query(query: str) -> str:
     Returns:
         Response to the query.
     """
-    # Will be implemented in Task 3 with LLM routing
+    # Simple keyword-based routing for common queries
+    query_lower = query.lower()
+    
+    if "lab" in query_lower and ("available" in query_lower or "list" in query_lower):
+        return await handle_labs()
+    
+    if "score" in query_lower or "pass" in query_lower:
+        # Try to extract lab ID from query
+        import re
+        lab_match = re.search(r'lab[- ]?\d+', query_lower, re.IGNORECASE)
+        if lab_match:
+            lab_id = lab_match.group().replace(" ", "-")
+            return await handle_scores(lab_id)
+        else:
+            return "Please specify which lab you want to see scores for. Example: /scores lab-04"
+    
+    if "help" in query_lower or "command" in query_lower:
+        return await handle_help()
+    
     return (
         f"🤔 You asked: \"{query}\"\n\n"
-        "This feature will be implemented in Task 3.\n"
-        "Try using /help to see available commands."
+        "I can help you with:\n"
+        "• /start - Welcome message\n"
+        "• /help - List of commands\n"
+        "• /health - Backend status\n"
+        "• /labs - Available labs\n"
+        "• /scores <lab_id> - Pass rates for a lab"
     )

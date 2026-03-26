@@ -24,6 +24,7 @@ from handlers import (
     handle_labs,
     handle_scores,
     handle_general_query,
+    set_lms_client,
 )
 from services import LMSClient, LLMClient
 
@@ -46,33 +47,41 @@ async def run_test_mode(query: str) -> None:
     """
     config = load_config()
     
-    # Parse the query
-    query = query.strip()
+    # Initialize LMS client for test mode
+    lms_client = LMSClient(config["lms_api_url"], config["lms_api_key"])
+    set_lms_client(lms_client)
     
-    if query.startswith("/"):
-        parts = query[1:].split(maxsplit=1)
-        command = parts[0].lower()
-        args = parts[1] if len(parts) > 1 else None
+    try:
+        # Parse the query
+        query = query.strip()
         
-        # Route to appropriate handler
-        if command == "start":
-            response = await handle_start(args)
-        elif command == "help":
-            response = await handle_help(args)
-        elif command == "health":
-            response = await handle_health(args)
-        elif command == "labs":
-            response = await handle_labs(args)
-        elif command == "scores":
-            response = await handle_scores(args)
+        if query.startswith("/"):
+            parts = query[1:].split(maxsplit=1)
+            command = parts[0].lower()
+            args = parts[1] if len(parts) > 1 else None
+            
+            # Route to appropriate handler
+            if command == "start":
+                response = await handle_start(args)
+            elif command == "help":
+                response = await handle_help(args)
+            elif command == "health":
+                response = await handle_health(args)
+            elif command == "labs":
+                response = await handle_labs(args)
+            elif command == "scores":
+                response = await handle_scores(args)
+            else:
+                response = f"⚠️ Unknown command: /{command}\nUse /help to see available commands."
         else:
-            response = f"Unknown command: /{command}\nUse /help to see available commands."
-    else:
-        # General query
-        response = await handle_general_query(query)
+            # General query
+            response = await handle_general_query(query)
+        
+        # Print response to stdout
+        print(response)
     
-    # Print response to stdout
-    print(response)
+    finally:
+        await lms_client.close()
 
 
 async def run_telegram_mode() -> None:
@@ -104,10 +113,8 @@ async def run_telegram_mode() -> None:
         config["llm_api_model"],
     )
     
-    # Store services in context for handlers
-    async def init_context(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        context.chat_data["lms_client"] = lms_client
-        context.chat_data["llm_client"] = llm_client
+    # Set LMS client for handlers
+    set_lms_client(lms_client)
     
     # Command handlers
     async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
